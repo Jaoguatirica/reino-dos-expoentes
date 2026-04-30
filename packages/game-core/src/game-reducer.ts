@@ -1,8 +1,9 @@
 import { getCorrectAnswerDamage, getWrongAnswerDamage, hasEnemyLost, hasPlayerLost } from './combat';
 import { event } from './events';
 import { generateQuestion } from './questions';
-import { initialInventory, restoreMissionRewards } from './inventory';
-import type { BalanceConfig, GameAction, GameEvent, GameState, LevelDefinition } from './types';
+import { initialInventory } from './inventory';
+import { itemsRegistry } from './items';
+import type { BalanceConfig, GameAction, GameEvent, GameState, LevelDefinition, EquipmentSlot } from './types';
 
 export const defaultBalance: BalanceConfig = {
   playerMaxHp: 100,
@@ -14,39 +15,34 @@ export const defaultBalance: BalanceConfig = {
   wrongAnswerDamage: 20,
   shieldWrongAnswerDamage: 5,
   timeoutDamage: 10,
-  scrollDamage: 25,
-  focusMax: 100,
-  focusStart: 0,
-  focusCorrectGain: 5,
-  focusComboGain: 2,
-  focusMissionBonus: 10,
-  focusDecayDelaySeconds: 7,
-  focusDecayIntervalSeconds: 1.5,
-  focusDecayPerSecond: 1,
-  timedFocusDecayPerSecond: 1,
-  focusCapByLevel: [30, 45, 60, 75, 100, 100],
-  focusTimerBonusSeconds: 0,
+  manaMax: 45,
+  manaStart: 0,
+  manaCorrectGain: 5,
+  manaComboGain: 2,
 };
 
 export function createInitialGameState(
   levels: LevelDefinition[],
   balance: BalanceConfig = defaultBalance,
 ): GameState {
+  const initialInv = { ...initialInventory, items: [...initialInventory.items] };
+  initialInv.items[0] = 'sword_common';
+  initialInv.items[1] = 'potion_health_small';
+  
   return {
     status: 'menu',
     levels,
     balance,
     currentLevelIndex: 0,
     playerHp: balance.playerMaxHp,
-    focus: balance.focusStart,
-    focusDecayElapsedSeconds: 0,
+    mana: balance.manaStart,
     enemyHp: balance.enemyMaxHp,
+    enemyMaxHp: balance.enemyMaxHp,
     currentQuestion: null,
     usedQuestionTexts: [],
     combo: 0,
-    inventory: initialInventory,
+    inventory: initialInv,
     missionCurrent: 0,
-    activeShield: false,
     lastEvents: [],
   };
 }
@@ -55,7 +51,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'START_GAME':
       return startLevel(
-        { ...state, status: 'playing', currentLevelIndex: 0, playerHp: state.balance.playerMaxHp },
+        { ...state, status: 'playing', currentLevelIndex: 0, playerHp: state.balance.playerMaxHp, mana: state.balance.manaStart },
         [event('GAME_STARTED')],
       );
     case 'GENERATE_QUESTION':
@@ -64,16 +60,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return answerQuestion(state, action.selected);
     case 'TIMEOUT':
       return timeoutQuestion(state);
-    case 'FOCUS_DECAY_TICK':
-      return decayFocus(state, action.deltaSeconds);
     case 'NEXT_LEVEL':
       return nextLevel(state);
-    case 'USE_SCROLL':
-      return useScroll(state, action.scroll);
-    case 'USE_POTION':
-      return usePotion(state);
     case 'RESET_GAME':
       return createInitialGameState(state.levels, state.balance);
+    case 'EQUIP_ITEM':
+      return equipItem(state, action.inventoryIndex, action.slot);
+    case 'UNEQUIP_ITEM':
+      return unequipItem(state, action.slot);
+    case 'DISCARD_ITEM':
+      return discardItem(state, action.inventoryIndex);
+    case 'USE_ACTIVE_SKILL':
+      return useActiveSkill(state, action.slot);
+    case 'USE_CONSUMABLE':
+      return useConsumable(state, action.inventoryIndex);
     default: {
       const exhaustive: never = action;
       return exhaustive;
@@ -83,14 +83,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
 function startLevel(state: GameState, introEvents: GameEvent[] = []): GameState {
   const lastEvents = [...introEvents, event('LEVEL_STARTED', { levelIndex: state.currentLevelIndex })];
+  // Enemy HP scales with currentLevelIndex
+  const scaledHp = Math.round(state.balance.enemyMaxHp * (1 + state.currentLevelIndex * 0.5));
   return withQuestion({
     ...state,
     status: 'playing',
-    enemyHp: state.balance.enemyMaxHp,
+    enemyHp: scaledHp,
+    enemyMaxHp: scaledHp,
     missionCurrent: 0,
-    focusDecayElapsedSeconds: 0,
     usedQuestionTexts: [],
-    activeShield: false,
     lastEvents,
   }, lastEvents);
 }
@@ -105,7 +106,6 @@ function withQuestion(state: GameState, lastEvents: GameEvent[] = []): GameState
     ...state,
     currentQuestion,
     usedQuestionTexts: [...usedQuestionTexts, currentQuestion.text],
-    focusDecayElapsedSeconds: 0,
     lastEvents,
   };
 }
@@ -115,71 +115,128 @@ function answerQuestion(state: GameState, selected: number): GameState {
 
   if (selected === state.currentQuestion.correctValue) {
     const combo = state.combo + 1;
-    const damage = getCorrectAnswerDamage(combo, state.balance);
-    const focusGain = getCorrectFocusGain(combo, state.balance);
-    const focus = addFocus(state, focusGain);
-    const focusGained = focus - state.focus;
+    const damage = getCorrectAnswerDamage(combo, state);
+    const manaGain = combo >= state.balance.comboThreshold ? state.balance.manaComboGain : state.balance.manaCorrectGain;
+    const mana = Math.min(state.balance.manaMax, state.mana + manaGain);
+    const manaGained = mana - state.mana;
+    
+    // Drop logic on every hit
+    const { newInventory, dropEvent } = tryDropItem(state);
+
     const nextState: GameState = {
       ...state,
       combo,
       missionCurrent: Math.min(state.balance.missionTarget, state.missionCurrent + 1),
       enemyHp: Math.max(0, state.enemyHp - damage),
-      focus,
-      focusDecayElapsedSeconds: 0,
-      lastEvents: [event('ANSWER_CORRECT', { combo, damage }), ...(focusGained > 0 ? [event('FOCUS_GAINED', { amount: focusGained })] : [])],
+      mana,
+      inventory: newInventory,
+      lastEvents: [
+        event('ANSWER_CORRECT', { combo, damage }), 
+        ...(manaGained > 0 ? [event('MANA_GAINED', { amount: manaGained })] : []),
+        ...(dropEvent ? [dropEvent] : [])
+      ],
     };
     return resolveVictory(nextState);
   }
 
-  const damage = getWrongAnswerDamage(state.activeShield, state.balance);
-  const { focus, hpDamage } = absorbDamageWithFocus(state, damage);
+  const damage = getWrongAnswerDamage(state);
   const nextState: GameState = {
     ...state,
     combo: 0,
-    activeShield: false,
-    focus,
-    focusDecayElapsedSeconds: 0,
-    playerHp: Math.max(0, state.playerHp - hpDamage),
+    playerHp: Math.max(0, state.playerHp - damage),
     lastEvents: [
       event('ANSWER_WRONG', { selected, correctValue: state.currentQuestion.correctValue }),
-      ...focusDamageEvents(damage - hpDamage, focus),
-      ...hpDamageEvents(hpDamage),
+      ...hpDamageEvents(damage),
     ],
   };
   return resolveGameOver(nextState);
+}
+
+function tryDropItem(state: GameState): { newInventory: GameState['inventory'], dropEvent: GameEvent | null } {
+  const newItems = [...state.inventory.items];
+  let dropEvent: GameEvent | null = null;
+  
+  // 100% de drop conforme pedido ("sempre que acertar")
+  const emptySlot = newItems.findIndex(i => i === null);
+  if (emptySlot !== -1) {
+    const dropId = rollLoot(state.currentLevelIndex);
+    newItems[emptySlot] = dropId;
+    dropEvent = event('ITEM_DROPPED', { itemId: dropId });
+  } else {
+    // Inventário cheio
+    dropEvent = event('INVENTORY_FULL');
+  }
+
+  return { 
+    newInventory: { ...state.inventory, items: newItems },
+    dropEvent 
+  };
 }
 
 function timeoutQuestion(state: GameState): GameState {
   if (state.status !== 'playing') return state;
 
-  const { focus, hpDamage } = absorbDamageWithFocus(state, state.balance.timeoutDamage);
+  const damage = state.balance.timeoutDamage;
   const nextState: GameState = {
     ...state,
     combo: 0,
-    focus,
-    focusDecayElapsedSeconds: 0,
-    playerHp: Math.max(0, state.playerHp - hpDamage),
-    lastEvents: [event('TIMEOUT'), ...focusDamageEvents(state.balance.timeoutDamage - hpDamage, focus), ...hpDamageEvents(hpDamage)],
+    playerHp: Math.max(0, state.playerHp - damage),
+    lastEvents: [event('TIMEOUT'), ...hpDamageEvents(damage)],
   };
   return resolveGameOver(nextState);
 }
 
 function resolveVictory(state: GameState): GameState {
-  if (!hasEnemyLost(state)) return state;
-
+  const enemyLost = hasEnemyLost(state);
   const missionCompleted = state.missionCurrent >= state.balance.missionTarget;
-  const focus = missionCompleted ? addFocus(state, state.balance.focusMissionBonus) : state.focus;
+  
+  if (!enemyLost && !missionCompleted) return state;
+  const lastEvents = [...state.lastEvents];
+
+  if (missionCompleted) {
+    lastEvents.push(event('LEVEL_COMPLETE', { missionCompleted }));
+  }
+
   return {
     ...state,
-    focus,
     status: 'victory',
-    inventory: missionCompleted ? restoreMissionRewards(state.inventory) : state.inventory,
-    lastEvents: [
-      ...state.lastEvents,
-      ...(missionCompleted && focus > state.focus ? [event('FOCUS_GAINED', { amount: focus - state.focus })] : []),
-      event('LEVEL_COMPLETE', { missionCompleted }),
-    ],
+    lastEvents,
   };
+}
+
+function rollLoot(levelIndex: number): string {
+  // Pesos melhorados para raridades maiores conforme o nível
+  const rarities: {rarity: string, weight: number}[] = [
+    { rarity: 'common', weight: 100 },
+    { rarity: 'uncommon', weight: 80 + levelIndex * 15 },
+    { rarity: 'rare', weight: 40 + levelIndex * 25 },
+    { rarity: 'epic', weight: 15 + levelIndex * 20 },
+    { rarity: 'legendary', weight: 8 + levelIndex * 15 },
+    { rarity: 'mythic', weight: 2 + levelIndex * 8 },
+  ];
+
+  const totalWeight = rarities.reduce((acc, r) => acc + r.weight, 0);
+  let roll = Math.random() * totalWeight;
+  
+  let selectedRarity = 'common';
+  // Ordenar do mais raro para o mais comum para o roll
+  const sortedRarities = [...rarities].sort((a, b) => {
+    const order = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+    return order.indexOf(b.rarity) - order.indexOf(a.rarity);
+  });
+
+  for (const r of sortedRarities) {
+    if (roll < r.weight) {
+      selectedRarity = r.rarity;
+      break;
+    }
+    roll -= r.weight;
+  }
+
+  const pool = Object.values(itemsRegistry).filter(i => i.rarity === selectedRarity);
+  if (pool.length === 0) return 'potion_health_small';
+  
+  return pool[Math.floor(Math.random() * pool.length)].id;
 }
 
 function resolveGameOver(state: GameState): GameState {
@@ -212,99 +269,130 @@ function nextLevel(state: GameState): GameState {
   }, [event('NEXT_LEVEL_REQUESTED')]);
 }
 
-function absorbDamageWithFocus(state: GameState, damage: number) {
-  const focusDamage = Math.min(state.focus, damage);
-  return {
-    focus: Math.max(0, state.focus - damage),
-    hpDamage: damage - focusDamage,
-  };
+function hpDamageEvents(hpDamage: number): GameEvent[] {
+  if (hpDamage <= 0) return [];
+  return [event('PLAYER_DAMAGED', { damage: hpDamage })];
 }
 
-function getCorrectFocusGain(combo: number, balance: BalanceConfig) {
-  return balance.focusCorrectGain + (combo >= balance.comboThreshold ? balance.focusComboGain : 0);
-}
+function equipItem(state: GameState, index: number, slot: EquipmentSlot): GameState {
+  const item = state.inventory.items[index];
+  if (!item) return state;
 
-function addFocus(state: GameState, amount: number) {
-  const cap = state.balance.focusCapByLevel[state.currentLevelIndex] ?? state.balance.focusMax;
-  return Math.min(cap, state.focus + amount);
-}
+  const def = itemsRegistry[item];
+  if (!def || (def.category !== 'weapon' && def.category !== 'armor' && def.category !== 'accessory')) return state;
 
-function decayFocus(state: GameState, deltaSeconds: number): GameState {
-  if (state.status !== 'playing' || state.focus <= 0 || deltaSeconds <= 0) return state;
-
-  const previousElapsed = state.focusDecayElapsedSeconds;
-  const nextElapsed = previousElapsed + deltaSeconds;
-  const delay = state.balance.focusDecayDelaySeconds;
-  const interval = state.balance.focusDecayIntervalSeconds;
-  const previousDrainSteps = Math.floor(Math.max(0, previousElapsed - delay) / interval);
-  const nextDrainSteps = Math.floor(Math.max(0, nextElapsed - delay) / interval);
-  const drainSteps = nextDrainSteps - previousDrainSteps;
-
-  if (drainSteps <= 0) {
-    return { ...state, focusDecayElapsedSeconds: nextElapsed, lastEvents: [] };
+  const newItems = [...state.inventory.items];
+  let currentEquipped = null;
+  
+  // Validate slot and category
+  if (slot === 'weapon' && def.category === 'weapon') currentEquipped = state.inventory.equippedWeapon;
+  else if (slot === 'armor' && def.category === 'armor') currentEquipped = state.inventory.equippedArmor;
+  else if ((slot === 'accessory1' || slot === 'accessory2') && def.category === 'accessory') {
+    currentEquipped = slot === 'accessory1' ? state.inventory.equippedAccessories[0] : state.inventory.equippedAccessories[1];
   }
+  else return state; // Invalid equip category
 
-  const level = state.levels[state.currentLevelIndex];
-  const rate = level.timeLimitSeconds ? state.balance.timedFocusDecayPerSecond : state.balance.focusDecayPerSecond;
-  const amount = Math.min(state.focus, drainSteps * rate);
-  const focus = Math.max(0, state.focus - amount);
+  newItems[index] = currentEquipped;
 
   return {
     ...state,
-    focus,
-    focusDecayElapsedSeconds: nextElapsed,
-    lastEvents: [event('FOCUS_DRAINED', { amount }), ...(focus === 0 ? [event('FOCUS_DEPLETED')] : [])],
+    inventory: {
+      ...state.inventory,
+      items: newItems,
+      equippedWeapon: slot === 'weapon' ? item : state.inventory.equippedWeapon,
+      equippedArmor: slot === 'armor' ? item : state.inventory.equippedArmor,
+      equippedAccessories: [
+        slot === 'accessory1' ? item : state.inventory.equippedAccessories[0],
+        slot === 'accessory2' ? item : state.inventory.equippedAccessories[1]
+      ]
+    },
+    lastEvents: [...state.lastEvents, event('ITEM_EQUIPPED', { itemId: item })]
   };
 }
 
-function focusDamageEvents(amount: number, remainingFocus: number) {
-  if (amount <= 0) return [];
-  return [event('FOCUS_ABSORBED_DAMAGE', { amount }), ...(remainingFocus === 0 ? [event('FOCUS_DEPLETED')] : [])];
-}
+function unequipItem(state: GameState, slot: EquipmentSlot): GameState {
+  const emptySlot = state.inventory.items.findIndex(i => i === null);
+  if (emptySlot === -1) return state;
 
-function hpDamageEvents(damage: number) {
-  return damage > 0 ? [event('PLAYER_DAMAGED', { damage })] : [];
-}
+  let item = null;
+  if (slot === 'weapon') item = state.inventory.equippedWeapon;
+  if (slot === 'armor') item = state.inventory.equippedArmor;
+  if (slot === 'accessory1') item = state.inventory.equippedAccessories[0];
+  if (slot === 'accessory2') item = state.inventory.equippedAccessories[1];
 
-function useScroll(state: GameState, scroll: 'product' | 'division' | 'negative'): GameState {
-  if (state.status !== 'playing') return state;
+  if (!item) return state;
 
-  if (scroll === 'product' && state.inventory.scrollProduct > 0 && state.currentQuestion) {
-    return answerQuestion({
-      ...state,
-      inventory: { ...state.inventory, scrollProduct: state.inventory.scrollProduct - 1 },
-      lastEvents: [event('ITEM_USED', { item: scroll })],
-    }, state.currentQuestion.correctValue);
-  }
-
-  if (scroll === 'division' && state.inventory.scrollDivision > 0) {
-    const nextState: GameState = {
-      ...state,
-      enemyHp: Math.max(0, state.enemyHp - state.balance.scrollDamage),
-      inventory: { ...state.inventory, scrollDivision: state.inventory.scrollDivision - 1 },
-      lastEvents: [event('ITEM_USED', { item: scroll, damage: state.balance.scrollDamage })],
-    };
-    return resolveVictory(nextState);
-  }
-
-  if (scroll === 'negative' && state.inventory.scrollNegative > 0) {
-    return {
-      ...state,
-      activeShield: true,
-      inventory: { ...state.inventory, scrollNegative: state.inventory.scrollNegative - 1 },
-      lastEvents: [event('ITEM_USED', { item: scroll })],
-    };
-  }
-
-  return state;
-}
-
-function usePotion(state: GameState): GameState {
-  if (state.status !== 'playing' || state.inventory.potions <= 0) return state;
+  const newItems = [...state.inventory.items];
+  newItems[emptySlot] = item;
 
   return {
     ...state,
-    inventory: { ...state.inventory, potions: state.inventory.potions - 1 },
-    lastEvents: [event('ITEM_USED', { item: 'potion' })],
+    inventory: {
+      ...state.inventory,
+      items: newItems,
+      equippedWeapon: slot === 'weapon' ? null : state.inventory.equippedWeapon,
+      equippedArmor: slot === 'armor' ? null : state.inventory.equippedArmor,
+      equippedAccessories: [
+        slot === 'accessory1' ? null : state.inventory.equippedAccessories[0],
+        slot === 'accessory2' ? null : state.inventory.equippedAccessories[1]
+      ]
+    },
+    lastEvents: [...state.lastEvents, event('ITEM_UNEQUIPPED', { itemId: item })]
   };
+}
+
+function discardItem(state: GameState, index: number): GameState {
+  if (!state.inventory.items[index]) return state;
+  const item = state.inventory.items[index];
+  const newItems = [...state.inventory.items];
+  newItems[index] = null;
+  return {
+    ...state,
+    inventory: { ...state.inventory, items: newItems },
+    lastEvents: [...state.lastEvents, event('ITEM_DISCARDED', { itemId: item })]
+  };
+}
+
+function useActiveSkill(state: GameState, slot: EquipmentSlot): GameState {
+  let item = null;
+  if (slot === 'weapon') item = state.inventory.equippedWeapon;
+  
+  if (!item) return state;
+  const def = itemsRegistry[item];
+  if (!def || def.category !== 'weapon') return state;
+  
+  const cost = def.activeManaCost;
+  if (state.mana < cost) return state;
+
+  const damage = Math.round(def.baseDamage * 3); 
+
+  const nextState: GameState = {
+    ...state,
+    mana: state.mana - cost,
+    enemyHp: Math.max(0, state.enemyHp - damage),
+    lastEvents: [...state.lastEvents, event('ACTIVE_SKILL_USED', { skillName: def.activeName }), event('MANA_SPENT', { amount: cost })]
+  };
+
+  return resolveVictory(nextState);
+}
+
+function useConsumable(state: GameState, index: number): GameState {
+  const item = state.inventory.items[index];
+  if (!item) return state;
+  const def = itemsRegistry[item];
+  if (!def || def.category !== 'consumable') return state;
+
+  const newItems = [...state.inventory.items];
+  newItems[index] = null;
+
+  let nextState = { ...state, inventory: { ...state.inventory, items: newItems } };
+
+  if (def.effectType === 'heal') {
+    nextState.playerHp = Math.min(state.balance.playerMaxHp, state.playerHp + def.effectValue);
+  } else if (def.effectType === 'mana') {
+    nextState.mana = Math.min(state.balance.manaMax, state.mana + def.effectValue);
+  }
+
+  nextState.lastEvents = [...state.lastEvents, event('ITEM_USED', { itemId: item })];
+  return nextState;
 }

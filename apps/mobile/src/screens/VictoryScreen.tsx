@@ -25,6 +25,7 @@ export function VictoryScreen({ game, title = 'VITÓRIA!' }: VictoryScreenProps)
         <Text style={styles.starBurst}>✦  ✨  ✦</Text>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.message}>Regra Dominada: {game.level.rule}</Text>
+        <Text style={styles.lootText}>Recompensas coletadas e mochila atualizada!</Text>
         <Text style={styles.trophy}>🏆</Text>
         <View style={styles.professorReaction}>
           <View style={styles.professorAvatar} accessibilityLabel={professorSprite.label}>
@@ -70,6 +71,7 @@ const styles = StyleSheet.create({
   starBurst: { color: colors.warning, fontSize: 28, textAlign: 'center' },
   title: { color: colors.text, fontSize: 28, fontWeight: '900', textAlign: 'center' },
   message: { color: colors.text, fontSize: 16, textAlign: 'center' },
+  lootText: { color: colors.secondary, fontSize: 14, textAlign: 'center', fontWeight: 'bold' },
   trophy: { fontSize: 64, textAlign: 'center' },
   professorReaction: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: colors.warning, backgroundColor: 'rgba(255,235,59,0.08)' },
   professorAvatar: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(0,0,0,0.24)' },

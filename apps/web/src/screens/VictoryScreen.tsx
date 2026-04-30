@@ -10,7 +10,6 @@ interface VictoryScreenProps {
 
 export function VictoryScreen({ game, title = 'VITÓRIA!', message }: VictoryScreenProps) {
   const missionCompleted = game.state.missionCurrent >= game.state.balance.missionTarget;
-  const focusCap = game.state.balance.focusCapByLevel[game.state.currentLevelIndex] ?? game.state.balance.focusMax;
   const nextLevel = game.state.levels[game.state.currentLevelIndex + 1];
   const eventTypes = game.state.lastEvents.map((event) => event.type);
   const professorMessage = getProfessorMessage({
@@ -37,11 +36,11 @@ export function VictoryScreen({ game, title = 'VITÓRIA!', message }: VictoryScr
           <strong>{game.state.missionCurrent}/{game.state.balance.missionTarget}</strong>
         </div>
         <div className="victory-summary-card">
-          <span>FOCO final</span>
-          <strong>{Math.round(game.state.focus)}/{focusCap}</strong>
+          <span>MANA final</span>
+          <strong>{Math.round(game.state.mana)}/{game.state.balance.manaMax}</strong>
         </div>
       </div>
-      {missionCompleted && <div className="conquest-alert">Missão concluída. Recursos restaurados para a próxima fase.</div>}
+      {missionCompleted && <div className="conquest-alert">Missão concluída. Recompensas de loot adicionadas à mochila!</div>}
       <div className="professor-reaction professor-celebrate">
         <div className="professor-avatar" aria-label={professorSprite.label} title={professorSprite.label}>
           <span
@@ -85,5 +84,7 @@ function ruleSummary(property: ReturnType<typeof useGameController>['level']['pr
       return 'Expoente negativo vira inverso da potência.';
     case 'complex':
       return 'Resolva por etapas e combine as regras.';
+    default:
+      return 'Domine as propriedades dos expoentes!';
   }
 }

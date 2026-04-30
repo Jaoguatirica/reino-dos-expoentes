@@ -15,16 +15,21 @@ export type GameEventType =
   | 'ANSWER_CORRECT'
   | 'ANSWER_WRONG'
   | 'PLAYER_DAMAGED'
-  | 'ITEM_USED'
   | 'LEVEL_COMPLETE'
   | 'GAME_OVER'
   | 'GAME_COMPLETED'
   | 'TIMEOUT'
   | 'TIMEOUT_WARNING'
-  | 'FOCUS_GAINED'
-  | 'FOCUS_DRAINED'
-  | 'FOCUS_DEPLETED'
-  | 'FOCUS_ABSORBED_DAMAGE';
+  | 'MANA_GAINED'
+  | 'MANA_SPENT'
+  | 'MANA_DEPLETED'
+  | 'ITEM_EQUIPPED'
+  | 'ITEM_UNEQUIPPED'
+  | 'ITEM_DISCARDED'
+  | 'ITEM_DROPPED'
+  | 'ACTIVE_SKILL_USED'
+  | 'INVENTORY_FULL'
+  | 'ITEM_USED';
 
 export interface LevelDefinition {
   id: string;
@@ -38,7 +43,7 @@ export interface LevelDefinition {
 
 export interface BalanceConfig {
   playerMaxHp: number;
-  enemyMaxHp: number;
+  enemyMaxHp: number; // Base enemy hp
   missionTarget: number;
   baseCorrectDamage: number;
   comboCorrectDamage: number;
@@ -46,25 +51,31 @@ export interface BalanceConfig {
   wrongAnswerDamage: number;
   shieldWrongAnswerDamage: number;
   timeoutDamage: number;
-  scrollDamage: number;
-  focusMax: number;
-  focusStart: number;
-  focusCorrectGain: number;
-  focusComboGain: number;
-  focusMissionBonus: number;
-  focusDecayDelaySeconds: number;
-  focusDecayIntervalSeconds: number;
-  focusDecayPerSecond: number;
-  timedFocusDecayPerSecond: number;
-  focusCapByLevel: number[];
-  focusTimerBonusSeconds: number;
+  manaMax: number;
+  manaStart: number;
+  manaCorrectGain: number;
+  manaComboGain: number;
+}
+
+export type ItemCategory = 'weapon' | 'armor' | 'accessory' | 'consumable';
+export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
+export type WeaponFamily = 'sword' | 'katana' | 'dagger' | 'bow' | 'axe';
+export type EquipmentSlot = 'weapon' | 'armor' | 'accessory1' | 'accessory2';
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: ItemCategory;
+  quantity: number;
+  description: string;
 }
 
 export interface InventoryState {
-  potions: number;
-  scrollProduct: number;
-  scrollDivision: number;
-  scrollNegative: number;
+  items: (string | null)[];
+  equippedWeapon: string | null;
+  equippedArmor: string | null;
+  equippedAccessories: [string | null, string | null];
+  maxSlots: number;
 }
 
 export interface Question {
@@ -86,15 +97,14 @@ export interface GameState {
   balance: BalanceConfig;
   currentLevelIndex: number;
   playerHp: number;
-  focus: number;
-  focusDecayElapsedSeconds: number;
+  mana: number;
   enemyHp: number;
+  enemyMaxHp: number; // Enemy HP scales per mission
   currentQuestion: Question | null;
   usedQuestionTexts: string[];
   combo: number;
   inventory: InventoryState;
   missionCurrent: number;
-  activeShield: boolean;
   lastEvents: GameEvent[];
 }
 
@@ -102,11 +112,51 @@ export type GameAction =
   | { type: 'START_GAME' }
   | { type: 'ANSWER'; selected: number }
   | { type: 'TIMEOUT' }
-  | { type: 'FOCUS_DECAY_TICK'; deltaSeconds: number }
   | { type: 'NEXT_LEVEL' }
-  | { type: 'USE_SCROLL'; scroll: 'product' | 'division' | 'negative' }
-  | { type: 'USE_POTION' }
   | { type: 'RESET_GAME' }
-  | { type: 'GENERATE_QUESTION' };
+  | { type: 'GENERATE_QUESTION' }
+  | { type: 'EQUIP_ITEM'; inventoryIndex: number; slot: EquipmentSlot }
+  | { type: 'UNEQUIP_ITEM'; slot: EquipmentSlot }
+  | { type: 'DISCARD_ITEM'; inventoryIndex: number }
+  | { type: 'USE_ACTIVE_SKILL'; slot: EquipmentSlot }
+  | { type: 'USE_CONSUMABLE'; inventoryIndex: number };
+
+export interface BaseItemDefinition {
+  id: string;
+  name: string;
+  description: string;
+  category: ItemCategory;
+  rarity: ItemRarity;
+  icon: string;
+}
+
+export interface WeaponDefinition extends BaseItemDefinition {
+  category: 'weapon';
+  family: WeaponFamily;
+  baseDamage: number;
+  passiveName: string;
+  passiveDescription: string;
+  activeName: string;
+  activeDescription: string;
+  activeManaCost: number;
+}
+
+export interface ArmorDefinition extends BaseItemDefinition {
+  category: 'armor';
+  defense: number;
+}
+
+export interface AccessoryDefinition extends BaseItemDefinition {
+  category: 'accessory';
+}
+
+export interface ConsumableDefinition extends BaseItemDefinition {
+  category: 'consumable';
+  effectType: 'heal' | 'mana' | 'buff';
+  effectValue: number;
+}
+
+export type ItemDefinition = WeaponDefinition | ArmorDefinition | AccessoryDefinition | ConsumableDefinition;
 
 export type RandomSource = () => number;
+

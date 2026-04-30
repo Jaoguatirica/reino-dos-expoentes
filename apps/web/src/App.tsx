@@ -9,8 +9,10 @@ import { useGameSfx } from './hooks/useGameSfx';
 
 export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
   const [isFading, setIsFading] = useState(false);
-  const game = useGameController({ paused: settingsOpen });
+  
+  const game = useGameController({ paused: settingsOpen || inventoryOpen });
   useGameSfx(game.state.lastEvents, game.progress.sfxEnabled, game.progress.sfxVolume);
   useGameMusic({ enabled: game.progress.musicEnabled, status: game.state.status, levelIndex: game.state.currentLevelIndex, volume: game.progress.musicVolume });
 
@@ -39,7 +41,13 @@ export function App() {
                onResetProgress={game.actions.resetProgress}
              />
         )}
-        {game.state.status === 'playing' && <BattleScreen game={game} />}
+        {game.state.status === 'playing' && (
+          <BattleScreen 
+            game={game} 
+            isInventoryOpen={inventoryOpen} 
+            setIsInventoryOpen={setInventoryOpen} 
+          />
+        )}
         {game.state.status === 'victory' && <VictoryScreen game={game} />}
         {game.state.status === 'game-over' && (
           <VictoryScreen game={game} title="GAME OVER" message="Tente novamente para conquistar o reino." />

@@ -3,6 +3,7 @@ export * from './combat';
 export * from './events';
 export * from './game-reducer';
 export * from './inventory';
+export * from './items';
 export * from './questions';
 export * from './random';
 export * from './types';

@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { createInitialGameState, gameReducer } from '@reino/game-core';
+import type { EquipmentSlot } from '@reino/game-core';
 import { defaultGameBalance, levels } from '@reino/game-content';
 import { logger } from '@reino/logger';
 import { clearWebProgress, loadWebProgress, saveWebProgress } from '../lib/progress-storage';
@@ -13,14 +14,12 @@ export function useGameController({ paused = false }: UseGameControllerOptions =
   const [progress, setProgress] = useState(loadWebProgress);
   const [timeLeft, setTimeLeft] = useState(0);
   const timerRef = useRef<number | null>(null);
-  const focusDecayRef = useRef<number | null>(null);
   const pausedRef = useRef(paused);
   const pendingQuestionRef = useRef(false);
   const activeQuestionRef = useRef(state.currentQuestion);
 
   const level = state.levels[state.currentLevelIndex];
-  const focusTimerBonus = level.timeLimitSeconds ? (state.focus / state.balance.focusMax) * state.balance.focusTimerBonusSeconds : 0;
-  const effectiveTimeLimitSeconds = (level.timeLimitSeconds ?? 0) + focusTimerBonus;
+  const effectiveTimeLimitSeconds = level.timeLimitSeconds ?? 0;
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -45,7 +44,9 @@ export function useGameController({ paused = false }: UseGameControllerOptions =
 
     const questionChanged = activeQuestionRef.current !== state.currentQuestion;
     activeQuestionRef.current = state.currentQuestion;
+
     setTimeLeft((current) => (questionChanged || current <= 0 ? effectiveTimeLimitSeconds : current));
+
     timerRef.current = window.setInterval(() => {
       setTimeLeft((current) => {
         const next = Math.max(0, current - 0.1);
@@ -62,23 +63,6 @@ export function useGameController({ paused = false }: UseGameControllerOptions =
       if (timerRef.current) window.clearInterval(timerRef.current);
     };
   }, [paused, state.status, state.currentQuestion, effectiveTimeLimitSeconds]);
-
-  useEffect(() => {
-    if (focusDecayRef.current) {
-      window.clearInterval(focusDecayRef.current);
-      focusDecayRef.current = null;
-    }
-
-    if (paused || state.status !== 'playing' || state.currentQuestion === null || state.focus <= 0) return;
-
-    focusDecayRef.current = window.setInterval(() => {
-      dispatch({ type: 'FOCUS_DECAY_TICK', deltaSeconds: state.balance.focusDecayIntervalSeconds });
-    }, state.balance.focusDecayIntervalSeconds * 1000);
-
-    return () => {
-      if (focusDecayRef.current) window.clearInterval(focusDecayRef.current);
-    };
-  }, [paused, state.status, state.currentQuestion, state.focus, state.balance.focusDecayIntervalSeconds]);
 
   useEffect(() => {
     state.lastEvents.forEach((gameEvent) => logger.info('GameEvent', gameEvent.type, gameEvent.payload));
@@ -100,7 +84,8 @@ export function useGameController({ paused = false }: UseGameControllerOptions =
   function answer(selected: number) {
     if (paused) return;
     dispatch({ type: 'ANSWER', selected });
-    window.setTimeout(() => {
+
+    setTimeout(() => {
       if (pausedRef.current) {
         pendingQuestionRef.current = true;
         return;
@@ -120,11 +105,12 @@ export function useGameController({ paused = false }: UseGameControllerOptions =
       start: () => dispatch({ type: 'START_GAME' }),
       answer,
       nextLevel: () => dispatch({ type: 'NEXT_LEVEL' }),
-      useProductScroll: () => dispatch({ type: 'USE_SCROLL', scroll: 'product' }),
-      useDivisionScroll: () => dispatch({ type: 'USE_SCROLL', scroll: 'division' }),
-      useNegativeScroll: () => dispatch({ type: 'USE_SCROLL', scroll: 'negative' }),
-      usePotion: () => dispatch({ type: 'USE_POTION' }),
       reset: () => dispatch({ type: 'RESET_GAME' }),
+      equipItem: (inventoryIndex: number, slot: EquipmentSlot) => dispatch({ type: 'EQUIP_ITEM', inventoryIndex, slot }),
+      unequipItem: (slot: EquipmentSlot) => dispatch({ type: 'UNEQUIP_ITEM', slot }),
+      discardItem: (inventoryIndex: number) => dispatch({ type: 'DISCARD_ITEM', inventoryIndex }),
+      useActiveSkill: (slot: EquipmentSlot) => dispatch({ type: 'USE_ACTIVE_SKILL', slot }),
+      useConsumable: (inventoryIndex: number) => dispatch({ type: 'USE_CONSUMABLE', inventoryIndex }),
       resetProgress: () => {
         clearWebProgress();
         setProgress(loadWebProgress());

@@ -21,7 +21,6 @@ export const audioCueByEventType: Partial<Record<GameEventType, AudioCue>> = {
   ANSWER_CORRECT: 'correct',
   ANSWER_WRONG: 'wrong',
   PLAYER_DAMAGED: 'damage',
-  ITEM_USED: 'item',
   LEVEL_COMPLETE: 'victory',
   GAME_OVER: 'gameOver',
   GAME_COMPLETED: 'completed',

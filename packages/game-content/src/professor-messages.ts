@@ -87,7 +87,6 @@ export function getProfessorMessage(input: ProfessorMessageInput): ProfessorMess
     return choose('celebrate', messageBanks.victory[input.property], input.previousText);
   }
   if (input.playerHp !== undefined && input.playerHp <= 25) return choose('warning', messageBanks.lowHp, input.previousText);
-  if (input.eventTypes.includes('ITEM_USED')) return choose('neutral', messageBanks.item, input.previousText);
   if (input.eventTypes.includes('TIMEOUT')) return { tone: 'coach', text: messageBanks.timeout[input.property] };
   if (input.eventTypes.includes('ANSWER_WRONG')) {
     return choose('coach', [`Quase! ${professorTipsByProperty[input.property]}`, 'Errar faz parte. Releia a expressão e resolva por etapas.'], input.previousText);

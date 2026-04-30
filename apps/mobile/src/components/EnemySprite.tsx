@@ -24,7 +24,7 @@ export function EnemySprite({ icon, spriteKey, events = [] }: EnemySpriteProps) 
   const sprite = spriteKey && spriteKey in enemySpritesByKey
     ? enemySpritesByKey[spriteKey as EnemySpriteKey]
     : null;
-  const hit = events.some((event) => event.type === 'ANSWER_CORRECT' || event.type === 'ITEM_USED');
+  const hit = events.some((event) => event.type === 'ANSWER_CORRECT');
   const scaleValue = useSharedValue(1);
   const rotateValue = useSharedValue(0);
 

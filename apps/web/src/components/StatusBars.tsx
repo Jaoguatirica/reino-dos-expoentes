@@ -8,26 +8,20 @@ interface StatusBarsProps {
 
 export function StatusBars({ state, events = [] }: StatusBarsProps) {
   const eventTypes = events.map((event) => event.type);
-  const focusCap = state.balance.focusCapByLevel[state.currentLevelIndex] ?? state.balance.focusMax;
-  const focusPercent = (state.focus / focusCap) * 100;
-  const focusClassName = focusPercent <= 0 ? 'focus-empty' : focusPercent < 35 ? 'focus-low' : 'focus-high';
-  const focusDelta = [...events].reverse().find((event) => event.type.startsWith('FOCUS_') && typeof event.payload?.amount === 'number');
-  const focusDelayLeft = Math.max(0, state.balance.focusDecayDelaySeconds - state.focusDecayElapsedSeconds);
-  const focusHint = state.status !== 'playing' || state.focus <= 0
-    ? 'sem foco acumulado'
-    : focusDelayLeft > 0
-      ? `drena em ${Math.ceil(focusDelayLeft)}s`
-      : 'drenando';
-  const focusDeltaText = focusDelta ? focusEventText(focusDelta.type, Number(focusDelta.payload?.amount)) : focusHint;
+  const manaPercent = (state.mana / state.balance.manaMax) * 100;
+  const manaClassName = manaPercent <= 0 ? 'focus-empty' : manaPercent < 35 ? 'focus-low' : 'focus-high';
+  const manaDelta = [...events].reverse().find((event) => event.type.startsWith('MANA_') && typeof event.payload?.amount === 'number');
+  const manaHint = state.status !== 'playing' || state.mana <= 0 ? 'sem mana' : 'mana ativo';
+  const manaDeltaText = manaDelta ? manaEventText(manaDelta.type, Number(manaDelta.payload?.amount)) : manaHint;
   return (
     <div className="status-bar">
       <div className={`bar-container ${eventTypes.includes('PLAYER_DAMAGED') ? 'hero-hp-hit' : ''}`}>
         <div className="label">Herói <span>HP</span></div>
         <div className="progress-bg"><div className="progress-fill hp-fill" style={{ width: `${state.playerHp}%` }} /></div>
       </div>
-      <div className={`bar-container ${eventTypes.includes('ANSWER_CORRECT') || eventTypes.includes('ITEM_USED') ? 'enemy-hp-hit' : ''}`}>
+      <div className={`bar-container ${eventTypes.includes('ANSWER_CORRECT') ? 'enemy-hp-hit' : ''}`}>
         <div className="label">Inimigo <span>HP</span></div>
-        <div className="progress-bg"><div className="progress-fill enemy-hp-fill" style={{ width: `${state.enemyHp}%` }} /></div>
+        <div className="progress-bg"><div className="progress-fill enemy-hp-fill" style={{ width: `${(state.enemyHp / state.enemyMaxHp) * 100}%` }} /></div>
       </div>
       <div className={`bar-container ${eventTypes.includes('ANSWER_CORRECT') ? 'mission-pulse' : ''}`}>
         <div className="label">Missão <span>{state.missionCurrent}/{state.balance.missionTarget}</span></div>
@@ -35,21 +29,20 @@ export function StatusBars({ state, events = [] }: StatusBarsProps) {
           <div className="progress-fill xp-fill" style={{ width: `${(state.missionCurrent / state.balance.missionTarget) * 100}%` }} />
         </div>
       </div>
-      <div className={`bar-container focus-container ${focusClassName} ${eventTypes.some((type) => type.startsWith('FOCUS_')) ? 'mission-pulse' : ''}`}>
-        <div className="label">Foco <span>{Math.round(state.focus)}/{focusCap}</span></div>
+      <div className={`bar-container focus-container ${manaClassName} ${eventTypes.some((type) => type.startsWith('MANA_')) ? 'mission-pulse' : ''}`}>
+        <div className="label">Mana <span>{Math.round(state.mana)}/{state.balance.manaMax}</span></div>
         <div className="progress-bg">
-          <div className="progress-fill focus-fill" style={{ width: `${focusPercent}%` }} />
+          <div className="progress-fill focus-fill" style={{ width: `${manaPercent}%` }} />
         </div>
-        <div className="focus-hint">{focusDeltaText}</div>
+        <div className="focus-hint">{manaDeltaText}</div>
       </div>
     </div>
   );
 }
 
-function focusEventText(type: GameEvent['type'], amount: number) {
-  if (type === 'FOCUS_GAINED') return `+${Math.round(amount)} FOCO`;
-  if (type === 'FOCUS_DRAINED') return `-${Math.round(amount)} FOCO`;
-  if (type === 'FOCUS_ABSORBED_DAMAGE') return `FOCO absorveu ${Math.round(amount)}`;
-  if (type === 'FOCUS_DEPLETED') return 'FOCO esgotado';
-  return 'FOCO ativo';
+function manaEventText(type: string, amount: number) {
+  if (type === 'MANA_GAINED') return `+${Math.round(amount)} MANA`;
+  if (type === 'MANA_SPENT') return `-${Math.round(amount)} MANA`;
+  if (type === 'MANA_DEPLETED') return 'MANA esgotada';
+  return 'MANA ativo';
 }

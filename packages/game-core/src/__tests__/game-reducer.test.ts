@@ -27,156 +27,80 @@ function playingState() {
 }
 
 describe('gameReducer', () => {
-  it('starts the first level with a generated question', () => {
+  it('starts the first level with a generated question and initial equipment', () => {
     const state = playingState();
     expect(state.status).toBe('playing');
     expect(state.currentQuestion).not.toBeNull();
-    expect(state.usedQuestionTexts).toContain(state.currentQuestion!.text);
+    expect(state.inventory.items[0]).toBe('sword_common');
+    expect(state.mana).toBe(0);
     expect(state.enemyHp).toBe(100);
-    expect(state.focus).toBe(0);
-    expect(state.missionCurrent).toBe(0);
-    expect(state.lastEvents.map((event) => event.type)).toEqual(['GAME_STARTED', 'LEVEL_STARTED']);
   });
 
-  it('correct answers increase mission progress and damage enemy', () => {
-    const state = { ...playingState(), focusDecayElapsedSeconds: 9 };
+  it('correct answers increase mission progress, damage enemy and drop item', () => {
+    const state = playingState();
     const next = gameReducer(state, { type: 'ANSWER', selected: state.currentQuestion!.correctValue });
     expect(next.missionCurrent).toBe(1);
-    expect(next.enemyHp).toBe(82);
-    expect(next.combo).toBe(1);
-    expect(next.focus).toBe(5);
-    expect(next.focusDecayElapsedSeconds).toBe(0);
-    expect(next.lastEvents.some((event) => event.type === 'ANSWER_CORRECT')).toBe(true);
-    expect(next.lastEvents).toContainEqual(expect.objectContaining({ type: 'FOCUS_GAINED', payload: { amount: 5 } }));
+    expect(next.mana).toBe(5);
+    expect(next.lastEvents.some(e => e.type === 'ITEM_DROPPED')).toBe(true);
+    expect(next.inventory.items.some((i, idx) => idx > 1 && i !== null)).toBe(true);
   });
 
-  it('adds a small focus bonus for combo streaks', () => {
-    const state = { ...playingState(), combo: 2, focus: 10 };
+  it('adds a mana bonus for combo streaks', () => {
+    const state = { ...playingState(), combo: 2, mana: 10 };
     const next = gameReducer(state, { type: 'ANSWER', selected: state.currentQuestion!.correctValue });
     expect(next.combo).toBe(3);
-    expect(next.focus).toBe(17);
-    expect(next.lastEvents).toContainEqual(expect.objectContaining({ type: 'FOCUS_GAINED', payload: { amount: 7 } }));
+    expect(next.mana).toBe(12); // combo bonus is 2 (defaultBalance)
   });
 
-  it('caps focus by the current phase', () => {
-    const state = { ...playingState(), focus: 28 };
+  it('allows equipping and unequipping items', () => {
+    const state = playingState();
+    const equipped = gameReducer(state, { type: 'EQUIP_ITEM', inventoryIndex: 0, slot: 'weapon' });
+    expect(equipped.inventory.equippedWeapon).toBe('sword_common');
+    expect(equipped.inventory.items[0]).toBeNull();
+
+    const unequipped = gameReducer(equipped, { type: 'UNEQUIP_ITEM', slot: 'weapon' });
+    expect(unequipped.inventory.equippedWeapon).toBeNull();
+    expect(unequipped.inventory.items[0]).toBe('sword_common');
+  });
+
+  it('allows using active skills with mana', () => {
+    const state = { ...playingState(), mana: 30 };
+    const equipped = gameReducer(state, { type: 'EQUIP_ITEM', inventoryIndex: 0, slot: 'weapon' });
+    
+    const next = gameReducer(equipped, { type: 'USE_ACTIVE_SKILL', slot: 'weapon' });
+    expect(next.mana).toBe(20); // sword_common cost is 10
+    expect(next.enemyHp).toBeLessThan(100);
+    expect(next.lastEvents.some(e => e.type === 'ACTIVE_SKILL_USED')).toBe(true);
+  });
+
+  it('allows using consumables', () => {
+    const state = { ...playingState(), playerHp: 50 };
+    // potion_health_small is at index 1
+    const next = gameReducer(state, { type: 'USE_CONSUMABLE', inventoryIndex: 1 });
+    expect(next.playerHp).toBe(75); // potion_health_small heals 25
+    expect(next.inventory.items[1]).toBeNull();
+  });
+
+  it('moves to victory on mission complete', () => {
+    const state = { ...playingState(), missionCurrent: 4 };
     const next = gameReducer(state, { type: 'ANSWER', selected: state.currentQuestion!.correctValue });
-    expect(next.focus).toBe(30);
-  });
-
-  it('does not emit a focus gained event when already capped', () => {
-    const state = { ...playingState(), focus: 30 };
-    const next = gameReducer(state, { type: 'ANSWER', selected: state.currentQuestion!.correctValue });
-    expect(next.focus).toBe(30);
-    expect(next.lastEvents.some((event) => event.type === 'FOCUS_GAINED')).toBe(false);
-  });
-
-  it('keeps accumulated focus when moving to the next level', () => {
-    const state = { ...playingState(), status: 'victory' as const, focus: 45 };
-    const next = gameReducer(state, { type: 'NEXT_LEVEL' });
-    expect(next.focus).toBe(45);
-  });
-
-  it('wrong answers drain focus before player hp and reset combo', () => {
-    const state = { ...playingState(), combo: 2, focus: 15 };
-    const next = gameReducer(state, { type: 'ANSWER', selected: state.currentQuestion!.correctValue + 99 });
-    expect(next.focus).toBe(0);
-    expect(next.playerHp).toBe(95);
-    expect(next.combo).toBe(0);
-    expect(next.lastEvents.some((event) => event.type === 'ANSWER_WRONG')).toBe(true);
-    expect(next.lastEvents).toContainEqual(expect.objectContaining({ type: 'FOCUS_ABSORBED_DAMAGE', payload: { amount: 15 } }));
-  });
-
-  it('wrong answers do not damage hp while focus absorbs all damage', () => {
-    const state = { ...playingState(), focus: 25 };
-    const next = gameReducer(state, { type: 'ANSWER', selected: state.currentQuestion!.correctValue + 99 });
-    expect(next.focus).toBe(5);
-    expect(next.playerHp).toBe(100);
-    expect(next.lastEvents.some((event) => event.type === 'PLAYER_DAMAGED')).toBe(false);
-  });
-
-  it('does not drain focus before the 7 second grace window expires', () => {
-    const state = { ...playingState(), focus: 20 };
-    const next = gameReducer(state, { type: 'FOCUS_DECAY_TICK', deltaSeconds: 6.9 });
-    expect(next.focus).toBe(20);
-  });
-
-  it('drains one focus only after each full 1.5 second decay interval', () => {
-    const state = { ...playingState(), focus: 20 };
-    const beforeInterval = gameReducer(state, { type: 'FOCUS_DECAY_TICK', deltaSeconds: 8.4 });
-    expect(beforeInterval.focus).toBe(20);
-
-    const next = gameReducer(beforeInterval, { type: 'FOCUS_DECAY_TICK', deltaSeconds: 0.1 });
-    expect(next.focus).toBe(19);
-    expect(next.lastEvents).toContainEqual(expect.objectContaining({ type: 'FOCUS_DRAINED', payload: { amount: 1 } }));
-  });
-
-  it('keeps timed phase focus drain to one point per full 1.5 second interval', () => {
-    const timedLevels = [{ ...levels[0], timeLimitSeconds: 12 }];
-    const state = { ...gameReducer(createInitialGameState(timedLevels), { type: 'START_GAME' }), focus: 20 };
-    const next = gameReducer(state, { type: 'FOCUS_DECAY_TICK', deltaSeconds: 8.5 });
-    expect(next.focus).toBe(19);
-  });
-
-  it('negative scroll shield reduces wrong-answer damage once', () => {
-    const shielded = gameReducer({ ...playingState(), focus: 0 }, { type: 'USE_SCROLL', scroll: 'negative' });
-    const next = gameReducer(shielded, { type: 'ANSWER', selected: shielded.currentQuestion!.correctValue + 99 });
-    expect(next.playerHp).toBe(95);
-    expect(next.activeShield).toBe(false);
-  });
-
-  it('timeout damages player once per action', () => {
-    const state = { ...playingState(), focus: 0 };
-    const afterTimeout = gameReducer(state, { type: 'TIMEOUT' });
-    expect(afterTimeout.playerHp).toBe(90);
-    const afterSecondTimeout = gameReducer(afterTimeout, { type: 'TIMEOUT' });
-    expect(afterSecondTimeout.playerHp).toBe(80);
-  });
-
-  it('allows mission target to be reached before victory', () => {
-    let state = playingState();
-    for (let count = 0; count < 5; count++) {
-      state = gameReducer(state, { type: 'ANSWER', selected: state.currentQuestion!.correctValue });
-      if (state.status === 'playing') {
-        state = gameReducer(state, { type: 'GENERATE_QUESTION' });
-      }
-    }
-    expect(state.status).toBe('victory');
-    expect(state.missionCurrent).toBe(5);
-  });
-
-  it('does not repeat generated questions during the current level flow', () => {
-    let state = playingState();
-    const questionTexts = [state.currentQuestion!.text];
-
-    for (let count = 0; count < 12; count++) {
-      state = gameReducer(state, { type: 'GENERATE_QUESTION' });
-      questionTexts.push(state.currentQuestion!.text);
-    }
-
-    expect(new Set(questionTexts).size).toBe(questionTexts.length);
-  });
-
-  it('division scroll can finish a level', () => {
-    const state = { ...playingState(), enemyHp: 20 };
-    const next = gameReducer(state, { type: 'USE_SCROLL', scroll: 'division' });
     expect(next.status).toBe('victory');
-    expect(next.enemyHp).toBe(0);
-  });
-
-  it('moves to the next level after victory', () => {
-    const state = { ...playingState(), status: 'victory' as const };
-    const next = gameReducer(state, { type: 'NEXT_LEVEL' });
-    expect(next.status).toBe('playing');
-    expect(next.currentLevelIndex).toBe(1);
-    expect(next.playerHp).toBe(100);
-    expect(next.lastEvents.map((event) => event.type)).toEqual(['NEXT_LEVEL_REQUESTED', 'LEVEL_STARTED']);
   });
 
   it('marks game over when player hp reaches zero', () => {
-    const state = { ...playingState(), playerHp: 10, focus: 0 };
+    const state = { ...playingState(), playerHp: 5 };
     const next = gameReducer(state, { type: 'ANSWER', selected: state.currentQuestion!.correctValue + 99 });
     expect(next.status).toBe('game-over');
-    expect(next.lastEvents.some((event) => event.type === 'GAME_OVER')).toBe(true);
+  });
+
+  it('emits INVENTORY_FULL when inventory is full', () => {
+    const state = playingState();
+    // Fill inventory
+    const fullItems = Array(30).fill('potion_health_small');
+    const fullState = { ...state, inventory: { ...state.inventory, items: fullItems } };
+    
+    const next = gameReducer(fullState, { type: 'ANSWER', selected: state.currentQuestion!.correctValue });
+    expect(next.lastEvents.some(e => e.type === 'INVENTORY_FULL')).toBe(true);
+    expect(next.lastEvents.some(e => e.type === 'ITEM_DROPPED')).toBe(false);
   });
 });

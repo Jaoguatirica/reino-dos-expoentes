@@ -10,20 +10,31 @@ import { colors, spacing } from './theme/tokens';
 
 export function MobileApp() {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const game = useGameController({ paused: settingsOpen });
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const game = useGameController({ paused: settingsOpen || inventoryOpen });
   useGameSfx(game.state.lastEvents, game.progress.sfxEnabled, game.progress.sfxVolume);
   useGameMusic({ enabled: game.progress.musicEnabled, status: game.state.status, levelIndex: game.state.currentLevelIndex, volume: game.progress.musicVolume });
 
   return (
     <View style={styles.root}>
       {game.state.status === 'menu' && <MainMenuScreen game={game} />}
-      {game.state.status === 'playing' && <BattleScreen game={game} />}
+      {game.state.status === 'playing' && (
+        <BattleScreen 
+          game={game} 
+          isInventoryOpen={inventoryOpen} 
+          setIsInventoryOpen={setInventoryOpen} 
+        />
+      )}
       {game.state.status === 'victory' && <VictoryScreen game={game} />}
       {game.state.status === 'completed' && <VictoryScreen game={game} title="TRONO CONQUISTADO!" />}
       {game.state.status === 'game-over' && <VictoryScreen game={game} title="GAME OVER" />}
+      
+      {/* Settings Button */}
       <Pressable accessibilityLabel="Abrir configurações" style={styles.settingsButton} onPress={() => setSettingsOpen(true)}>
         <Text style={styles.settingsIcon}>⚙</Text>
       </Pressable>
+      
+      {/* Settings Modal */}
       <Modal transparent visible={settingsOpen} animationType="fade" onRequestClose={() => setSettingsOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setSettingsOpen(false)}>
           <Pressable style={styles.settingsPanel} onPress={(event) => event.stopPropagation()}>
