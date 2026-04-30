@@ -88,17 +88,17 @@ export const uiSpritesByKey = {
 export type UiSpriteKey = keyof typeof uiSpritesByKey;
 
 export const musicByCue = {
-  menu: { path: 'assets/audio/music/menu-theme.wav', label: 'Menu theme' },
-  forestGuardian: { path: 'assets/audio/music/forest-guardian.wav', label: 'Forest guardian theme' },
-  divisionCave: { path: 'assets/audio/music/division-cave.wav', label: 'Division cave theme' },
-  powerTower: { path: 'assets/audio/music/power-tower.wav', label: 'Power tower theme' },
-  zeroDesert: { path: 'assets/audio/music/zero-desert.wav', label: 'Zero desert theme' },
-  negativeAbyss: { path: 'assets/audio/music/negative-abyss.wav', label: 'Negative abyss theme' },
-  chaosThrone: { path: 'assets/audio/music/chaos-throne.wav', label: 'Chaos throne theme' },
-  battleBasic: { path: 'assets/audio/music/battle-basic.wav', label: 'Basic battle loop' },
-  battleIntermediate: { path: 'assets/audio/music/battle-intermediate.wav', label: 'Intermediate battle loop' },
-  battleAdvanced: { path: 'assets/audio/music/battle-advanced.wav', label: 'Advanced battle loop' },
-  gameComplete: { path: 'assets/audio/music/game-complete.wav', label: 'Game complete theme' },
+  menu: { path: 'assets/audio/music/post-adventure_tea_party.wav', label: 'Menu theme – Post-Adventure Tea Party' },
+  forestGuardian: { path: 'assets/audio/music/stumble_around.wav', label: 'Forest guardian – Stumble Around' },
+  divisionCave: { path: 'assets/audio/music/it_takes_a_hero.wav', label: 'Division cave – It Takes a Hero' },
+  powerTower: { path: 'assets/audio/music/the_world_is_ours.wav', label: 'Power tower – The World Is Ours' },
+  zeroDesert: { path: 'assets/audio/music/face_the_facts.wav', label: 'Zero desert – Face the Facts' },
+  negativeAbyss: { path: 'assets/audio/music/sinister_abode.wav', label: 'Negative abyss – Sinister Abode' },
+  chaosThrone: { path: 'assets/audio/music/space_cadet_training_montage.wav', label: 'Chaos throne – Space Cadet Training Montage' },
+  battleBasic: { path: 'assets/audio/music/moms_workout_cd.wav', label: 'Basic battle – Moms Workout CD' },
+  battleIntermediate: { path: 'assets/audio/music/dizzy_racing.wav', label: 'Intermediate battle – Dizzy Racing' },
+  battleAdvanced: { path: 'assets/audio/music/space_cadet_training_montage.wav', label: 'Advanced battle – Space Cadet Training Montage' },
+  gameComplete: { path: 'assets/audio/music/100_victories.wav', label: 'Game complete – 100 Victories' },
 } as const;
 
 export const sfxByCue = {
