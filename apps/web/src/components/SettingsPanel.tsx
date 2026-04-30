@@ -37,6 +37,20 @@ export function SettingsPanel({ game, open, onOpenChange }: SettingsPanelProps) 
                 <input type="range" min="0" max="1" step="0.05" value={game.progress.sfxVolume} onChange={(event) => game.actions.setSfxVolume(Number(event.currentTarget.value))} />
               </label>
             </div>
+            
+            <div className="settings-control" style={{ border: 'none', background: 'transparent', padding: '0', marginTop: '10px' }}>
+              <button 
+                className="full-width-button" 
+                type="button" 
+                onClick={() => {
+                  game.actions.reset();
+                  onOpenChange(false);
+                }}
+                style={{ background: 'linear-gradient(135deg, #ff5252, #b00020)' }}
+              >
+                Voltar ao Menu Inicial
+              </button>
+            </div>
           </section>
         </div>
       )}

@@ -52,7 +52,27 @@ body {
   border: 1px solid rgba(124, 58, 237, 0.58);
   border-radius: 22px;
   box-shadow: 0 22px 70px rgba(0, 0, 0, 0.58), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
-  transition: all 0.5s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.black-transition-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background-color: #000000;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.black-transition-overlay.animating {
+  animation: fadeToBlackAndReveal 3.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes fadeToBlackAndReveal {
+  0% { opacity: 0; pointer-events: all; }
+  14% { opacity: 1; pointer-events: all; } /* at 0.5s screen is black */
+  22% { opacity: 1; pointer-events: all; } /* hold black while React re-renders */
+  100% { opacity: 0; pointer-events: none; } /* fade back to transparent revealing the game */
 }
 
 #main-menu {
