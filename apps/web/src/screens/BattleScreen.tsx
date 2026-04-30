@@ -20,6 +20,8 @@ interface FeedbackSnapshot {
   id: number;
   eventTypes: GameEventType[];
   latestDamage?: number;
+  isCritical: boolean;
+  isSkill: boolean;
   missionGained: boolean;
   professorMessage: ReturnType<typeof getProfessorMessage>;
   itemMessage?: {
@@ -34,8 +36,11 @@ export function BattleScreen({ game, isInventoryOpen, setIsInventoryOpen }: Batt
   const eventTypes = game.state.lastEvents.map((event) => event.type);
   const [feedbackSnapshot, setFeedbackSnapshot] = useState<FeedbackSnapshot | null>(null);
   const previousProfessorTextRef = useRef<string | undefined>(undefined);
+  
   const activeEventTypes = feedbackSnapshot?.eventTypes ?? eventTypes;
   const latestDamage = feedbackSnapshot?.latestDamage;
+  const isCritical = Boolean(feedbackSnapshot?.isCritical);
+  const isSkill = Boolean(feedbackSnapshot?.isSkill);
   const missionGained = Boolean(feedbackSnapshot?.missionGained);
   const missionProgress = game.state.missionCurrent / game.state.balance.missionTarget;
   const missionGainClassName = missionProgress >= 1 ? 'mission-gain mission-gain-gold' : missionProgress >= 0.6 ? 'mission-gain mission-gain-warm' : 'mission-gain mission-gain-cool';
@@ -52,6 +57,7 @@ export function BattleScreen({ game, isInventoryOpen, setIsInventoryOpen }: Batt
     if (game.state.lastEvents.length === 0) return;
 
     const nextEventTypes = game.state.lastEvents.map((event) => event.type);
+    const lastEvent = game.state.lastEvents.at(-1);
     const nextProfessorMessage = getProfessorMessage({
       eventTypes: nextEventTypes,
       combo: game.state.combo,
@@ -78,13 +84,14 @@ export function BattleScreen({ game, isInventoryOpen, setIsInventoryOpen }: Batt
       id: Date.now(),
       eventTypes: nextEventTypes,
       latestDamage: [...game.state.lastEvents].reverse().find((event) => typeof event.payload?.damage === 'number')?.payload?.damage as number | undefined,
+      isCritical: Boolean(game.state.lastEvents.find(e => e.type === 'ANSWER_CORRECT')?.payload?.isCritical),
+      isSkill: nextEventTypes.includes('ACTIVE_SKILL_USED'),
       missionGained: nextEventTypes.includes('ANSWER_CORRECT'),
       professorMessage: nextProfessorMessage,
       itemMessage: itemMsg
     });
 
-    // Aumento do tempo do aviso conforme solicitado
-    const timeout = window.setTimeout(() => setFeedbackSnapshot(null), 12000);
+    const timeout = window.setTimeout(() => setFeedbackSnapshot(null), itemMsg ? 8000 : 4000);
     return () => window.clearTimeout(timeout);
   }, [game.level.property, game.state.combo, game.state.lastEvents, game.state.playerHp]);
 
@@ -96,7 +103,11 @@ export function BattleScreen({ game, isInventoryOpen, setIsInventoryOpen }: Batt
     game.state.combo >= 3 ? 'battle-shell-combo' : '',
   ].filter(Boolean).join(' ');
   
-  const enemyClassName = activeEventTypes.includes('ANSWER_CORRECT') || activeEventTypes.includes('ACTIVE_SKILL_USED') ? 'enemy-hit' : '';
+  const enemyClassName = [
+    (activeEventTypes.includes('ANSWER_CORRECT') || activeEventTypes.includes('ACTIVE_SKILL_USED')) ? 'enemy-hit' : '',
+    isCritical ? 'hit-critical' : '',
+    isSkill ? 'hit-skill' : ''
+  ].filter(Boolean).join(' ');
   
   const feedbackClassName = eventTypes.includes('ANSWER_WRONG') || eventTypes.includes('TIMEOUT')
     ? 'feedback wrong-feedback'
@@ -114,10 +125,12 @@ export function BattleScreen({ game, isInventoryOpen, setIsInventoryOpen }: Batt
           <div className="enemy-feedback-wrap">
             <EnemyDisplay icon={game.level.icon} spriteKey={enemy?.spriteKey} className={enemyClassName} />
             {latestDamage && (activeEventTypes.includes('ANSWER_CORRECT') || activeEventTypes.includes('ACTIVE_SKILL_USED')) && (
-              <span className="floating-damage">-{latestDamage}</span>
+              <span className={`floating-damage ${isCritical ? 'damage-critical' : ''} ${isSkill ? 'damage-skill' : ''}`}>
+                -{latestDamage}{isCritical ? '!' : ''}
+              </span>
             )}
             {(activeEventTypes.includes('ANSWER_CORRECT') || activeEventTypes.includes('ACTIVE_SKILL_USED')) && (
-              <span className="enemy-burst" aria-hidden="true" />
+              <span className={`enemy-burst ${isCritical ? 'burst-critical' : ''}`} aria-hidden="true" />
             )}
           </div>
           
@@ -134,7 +147,7 @@ export function BattleScreen({ game, isInventoryOpen, setIsInventoryOpen }: Batt
                 onClick={() => game.actions.useActiveSkill('weapon')}
                 title={weaponDef.activeDescription}
               >
-                {weaponDef.activeName}
+                <span className="skill-name">{weaponDef.activeName}</span>
                 <span className="skill-cost">{weaponDef.activeManaCost} MP</span>
               </button>
             </div>
@@ -143,7 +156,7 @@ export function BattleScreen({ game, isInventoryOpen, setIsInventoryOpen }: Batt
           <div id="feedback" className={feedbackClassName}>
             {itemMessage ? (
               <span className={`item-acquired-msg rarity-${itemMessage.rarity}`}>
-                NOVO ITEM: {itemMessage.text}
+                Item Adquirido: {itemMessage.text}
               </span>
             ) : (
               game.state.lastEvents.at(-1)?.type.replaceAll('_', ' ')
@@ -174,14 +187,12 @@ export function BattleScreen({ game, isInventoryOpen, setIsInventoryOpen }: Batt
         </div>
       </div>
 
-      {/* Backpack Floating Button */}
       <button className="backpack-button" onClick={() => setIsInventoryOpen(true)} title="Abrir Inventário">
         🎒
       </button>
 
-      {/* Inventory Modal */}
       {isInventoryOpen && (
-        <div className="inventory-modal">
+        <div className="inventory-modal fullscreen-modal">
           <div className="inventory-modal-content">
             <button className="inventory-modal-close" onClick={() => setIsInventoryOpen(false)}>×</button>
             <InventoryPanel 

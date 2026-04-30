@@ -10,15 +10,15 @@ export const defaultBalance: BalanceConfig = {
   enemyMaxHp: 100,
   missionTarget: 5,
   baseCorrectDamage: 18,
-  comboCorrectDamage: 22,
-  comboThreshold: 3,
-  wrongAnswerDamage: 20,
+  comboCorrectDamage: 24,
+  comboThreshold: 2,
+  wrongAnswerDamage: 15,
   shieldWrongAnswerDamage: 5,
   timeoutDamage: 10,
-  manaMax: 45,
+  manaMax: 100,
   manaStart: 0,
-  manaCorrectGain: 5,
-  manaComboGain: 2,
+  manaCorrectGain: 8,
+  manaComboGain: 12,
 };
 
 export function createInitialGameState(
@@ -115,7 +115,7 @@ function answerQuestion(state: GameState, selected: number): GameState {
 
   if (selected === state.currentQuestion.correctValue) {
     const combo = state.combo + 1;
-    const damage = getCorrectAnswerDamage(combo, state);
+    const { amount: damage, isCritical } = getCorrectAnswerDamage(combo, state);
     const manaGain = combo >= state.balance.comboThreshold ? state.balance.manaComboGain : state.balance.manaCorrectGain;
     const mana = Math.min(state.balance.manaMax, state.mana + manaGain);
     const manaGained = mana - state.mana;
@@ -131,7 +131,7 @@ function answerQuestion(state: GameState, selected: number): GameState {
       mana,
       inventory: newInventory,
       lastEvents: [
-        event('ANSWER_CORRECT', { combo, damage }), 
+        event('ANSWER_CORRECT', { combo, damage, isCritical }), 
         ...(manaGained > 0 ? [event('MANA_GAINED', { amount: manaGained })] : []),
         ...(dropEvent ? [dropEvent] : [])
       ],
@@ -156,7 +156,10 @@ function tryDropItem(state: GameState): { newInventory: GameState['inventory'], 
   const newItems = [...state.inventory.items];
   let dropEvent: GameEvent | null = null;
   
-  // 100% de drop conforme pedido ("sempre que acertar")
+  // Taxa de drop reduzida para 75% conforme pedido
+  if (Math.random() > 0.75) {
+    return { newInventory: state.inventory, dropEvent: null };
+  }
   const emptySlot = newItems.findIndex(i => i === null);
   if (emptySlot !== -1) {
     const dropId = rollLoot(state.currentLevelIndex);
