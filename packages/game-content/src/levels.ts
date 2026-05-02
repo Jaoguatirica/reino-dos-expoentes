@@ -4,7 +4,7 @@ export const levels: LevelDefinition[] = [
   {
     id: 'forest-products',
     name: '1. FLORESTA DOS PRODUTOS',
-    icon: '🌲👾',
+    icon: 'assets/game-images/divexfre-pixel-art-9741347_1920.png',
     property: 'multiplication',
     rule: 'aᵐ · aⁿ = aᵐ⁺ⁿ',
     difficulty: 4,
@@ -13,7 +13,7 @@ export const levels: LevelDefinition[] = [
   {
     id: 'division-cave',
     name: '2. CAVERNA DAS DIVISÕES',
-    icon: '🦇👾',
+    icon: 'assets/game-images/classic ghost floating around.gif',
     property: 'division',
     rule: 'aᵐ / aⁿ = aᵐ⁻ⁿ',
     difficulty: 5,
@@ -22,7 +22,7 @@ export const levels: LevelDefinition[] = [
   {
     id: 'power-tower',
     name: '3. TORRE DAS POTÊNCIAS',
-    icon: '🏰👻',
+    icon: 'assets/game-images/skeleton mage 64.png',
     property: 'powerOfPower',
     rule: '(aᵐ)ⁿ = aᵐ˙ⁿ',
     difficulty: 6,
@@ -31,7 +31,7 @@ export const levels: LevelDefinition[] = [
   {
     id: 'zero-desert',
     name: '4. DESERTO DO ZERO',
-    icon: '🏜️🦂',
+    icon: 'assets/game-images/divexfre-pixel-art-9752554_1920.png',
     property: 'zeroExponent',
     rule: 'a⁰ = 1',
     difficulty: 7,
@@ -40,7 +40,7 @@ export const levels: LevelDefinition[] = [
   {
     id: 'negative-abyss',
     name: '5. ABISMO NEGATIVO',
-    icon: '🌑👹',
+    icon: 'assets/game-images/miklaws-pixel-7103806_1920.png',
     property: 'negative',
     rule: 'a⁻ⁿ = 1/aⁿ',
     difficulty: 8,
@@ -49,10 +49,37 @@ export const levels: LevelDefinition[] = [
   {
     id: 'chaos-throne',
     name: '6. TRONO DO CAOS',
-    icon: '👑🔥',
+    icon: 'assets/game-images/miklaws-knight-7103809_1920.png',
     property: 'complex',
     rule: 'Mistura Total!',
     difficulty: 10,
+    timeLimitSeconds: 12,
+  },
+  {
+    id: 'dark-knight-challenge',
+    name: '7. O CAVALEIRO DAS TREVAS',
+    icon: 'assets/game-images/knighte.png',
+    property: 'complex',
+    rule: 'Desafio Final!',
+    difficulty: 12,
+    timeLimitSeconds: 10,
+  },
+  {
+    id: 'skeleton-mage-tower',
+    name: '8. A TORRE DO MAGO ESQUELETO',
+    icon: 'assets/game-images/skeleton mage 64.png',
+    property: 'complex',
+    rule: 'Cuidado com os feitiços!',
+    difficulty: 11,
+    timeLimitSeconds: 15,
+  },
+  {
+    id: 'ghost-challenge',
+    name: 'X. O ESPECTRO FLUTUANTE',
+    icon: 'assets/game-images/classic ghost floating around.gif',
+    property: 'complex',
+    rule: 'Sobreviva ao fantasma!',
+    difficulty: 9,
     timeLimitSeconds: 12,
   },
 ];

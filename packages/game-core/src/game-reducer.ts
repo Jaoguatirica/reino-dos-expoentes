@@ -15,7 +15,7 @@ export const defaultBalance: BalanceConfig = {
   wrongAnswerDamage: 15,
   shieldWrongAnswerDamage: 5,
   timeoutDamage: 10,
-  manaMax: 100,
+  manaMax: 150,
   manaStart: 0,
   manaCorrectGain: 8,
   manaComboGain: 12,
@@ -392,6 +392,10 @@ function useConsumable(state: GameState, index: number): GameState {
 
   if (def.effectType === 'heal') {
     nextState.playerHp = Math.min(state.balance.playerMaxHp, state.playerHp + def.effectValue);
+    // Special dual effect for pastry
+    if (def.id === 'item_pastry') {
+      nextState.mana = Math.min(state.balance.manaMax, nextState.mana + 15);
+    }
   } else if (def.effectType === 'mana') {
     nextState.mana = Math.min(state.balance.manaMax, state.mana + def.effectValue);
   }

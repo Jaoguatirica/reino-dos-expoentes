@@ -12,6 +12,14 @@ interface InventoryPanelProps {
   };
 }
 
+function ItemIcon({ icon, className = '' }: { icon: string; className?: string }) {
+  const isImageUrl = icon.startsWith('assets/') || icon.startsWith('http');
+  if (isImageUrl) {
+    return <img src={icon} alt="item" className={className} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />;
+  }
+  return <span className={className}>{icon}</span>;
+}
+
 export function InventoryPanel({ state, actions }: InventoryPanelProps) {
   const { inventory } = state;
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
@@ -54,7 +62,9 @@ export function InventoryPanel({ state, actions }: InventoryPanelProps) {
             >
               {itemId && (
                 <div className="item-content">
-                  <span className="item-icon">{itemsRegistry[itemId].icon}</span>
+                  <div className="item-icon-container">
+                    <ItemIcon icon={itemsRegistry[itemId].icon} />
+                  </div>
                   <span className={`item-name-grid rarity-${itemsRegistry[itemId].rarity}`}>{itemsRegistry[itemId].name}</span>
                 </div>
               )}
@@ -67,7 +77,9 @@ export function InventoryPanel({ state, actions }: InventoryPanelProps) {
         {selectedItem ? (
           <div className="item-details-panel">
             <div className="details-header">
-              <span className="details-icon-large">{selectedItem.icon}</span>
+              <div className="details-icon-large-container">
+                <ItemIcon icon={selectedItem.icon} />
+              </div>
               <div>
                 <h3 className={`details-name rarity-${selectedItem.rarity}`}>{selectedItem.name}</h3>
                 <span className={`details-rarity-label rarity-${selectedItem.rarity}`}>{selectedItem.rarity.toUpperCase()}</span>
@@ -127,7 +139,9 @@ function EqSlot({ label, itemId, onClick }: { label: string; itemId: string | nu
     <div className={`eq-slot ${item ? 'filled' : ''}`} onClick={onClick}>
       {item ? (
         <div className="item-content">
-          <span className="item-icon">{item.icon}</span>
+          <div className="item-icon-container">
+            <ItemIcon icon={item.icon} />
+          </div>
           <span className={`item-name rarity-${item.rarity}`}>{item.name}</span>
         </div>
       ) : null}

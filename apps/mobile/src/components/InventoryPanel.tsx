@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, Image } from 'react-native';
 import type { GameState, EquipmentSlot } from '@reino/game-core';
 import { itemsRegistry } from '@reino/game-core';
 import { colors, spacing } from '../theme/tokens';
@@ -12,6 +12,18 @@ interface InventoryPanelProps {
     discardItem: (index: number) => void;
     useConsumable: (index: number) => void;
   };
+}
+
+
+
+function ItemIcon({ icon, size = 24 }: { icon: string; size?: number }) {
+  const isImageUrl = icon.startsWith('assets/') || icon.startsWith('http');
+  if (isImageUrl) {
+    // Basic mapping for mobile assets
+    const iconPath = icon.split('/').pop();
+    return <Image source={{ uri: icon }} style={{ width: size, height: size, resizeMode: 'contain' }} />;
+  }
+  return <Text style={{ fontSize: size }}>{icon}</Text>;
 }
 
 export function InventoryPanel({ state, actions }: InventoryPanelProps) {
@@ -43,14 +55,14 @@ export function InventoryPanel({ state, actions }: InventoryPanelProps) {
 
       <ScrollView contentContainerStyle={styles.grid}>
         {inventory.items.map((itemId, idx) => (
-          <TouchableOpacity 
-            key={idx} 
+          <TouchableOpacity
+            key={idx}
             style={[styles.slot, itemId ? styles.slotFilled : styles.slotEmpty, selectedIdx === idx && styles.slotSelected]}
             onPress={() => handleSlotClick(idx)}
           >
             {itemId ? (
               <View style={styles.itemContent}>
-                <Text style={styles.itemIcon}>{itemsRegistry[itemId].icon}</Text>
+                <ItemIcon icon={itemsRegistry[itemId].icon} size={24} />
                 <Text style={[styles.itemName, { color: getRarityColor(itemsRegistry[itemId].rarity) }]} numberOfLines={1}>{itemsRegistry[itemId].name}</Text>
               </View>
             ) : null}
@@ -65,7 +77,7 @@ export function InventoryPanel({ state, actions }: InventoryPanelProps) {
             {selectedItem && (
               <>
                 <View style={styles.detailsHeader}>
-                  <Text style={styles.detailsIconLarge}>{selectedItem.icon}</Text>
+                  <ItemIcon icon={selectedItem.icon} size={48} />
                   <View>
                     <Text style={[styles.detailsName, { color: getRarityColor(selectedItem.rarity) }]}>{selectedItem.name}</Text>
                     <Text style={[styles.detailsRarity, { color: getRarityColor(selectedItem.rarity) }]}>{selectedItem.rarity.toUpperCase()}</Text>
@@ -73,7 +85,7 @@ export function InventoryPanel({ state, actions }: InventoryPanelProps) {
                 </View>
 
                 <Text style={styles.detailsDesc}>{selectedItem.description}</Text>
-                
+
                 <View style={styles.statsContainer}>
                   {selectedItem.category === 'weapon' && (
                     <>
@@ -141,7 +153,7 @@ function EqSlot({ label, itemId, onPress }: { label: string; itemId: string | nu
     <TouchableOpacity style={[styles.eqSlot, item && styles.eqSlotFilled]} onPress={onPress}>
       {item ? (
         <View style={styles.itemContent}>
-          <Text style={styles.itemIconSmall}>{item.icon}</Text>
+          <ItemIcon icon={item.icon} size={18} />
           <Text style={[styles.itemNameSmall, { color: getRarityColor(item.rarity) }]} numberOfLines={1}>{item.name}</Text>
         </View>
       ) : (

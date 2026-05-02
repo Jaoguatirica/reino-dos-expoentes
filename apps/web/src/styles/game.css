@@ -474,6 +474,24 @@ button:disabled { cursor: not-allowed; filter: grayscale(0.5); opacity: 0.6; }
   padding: 10px 0;
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
+.item-icon-container {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 5px;
+}
+.item-icon { font-size: 1.5rem; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5)); }
+.details-icon-large-container {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+}
 .details-icon-large {
   font-size: 56px;
   filter: drop-shadow(0 0 10px rgba(124, 58, 237, 0.4));
@@ -541,6 +559,22 @@ button:disabled { cursor: not-allowed; filter: grayscale(0.5); opacity: 0.6; }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+.label { 
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-dim); 
+  font-size: 0.75rem; 
+  font-weight: 900; 
+  text-transform: uppercase; 
+  letter-spacing: 0.5px; 
+}
+.bar-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
 .item-acquired-msg {
   display: block;
   font-size: 1.2rem;
