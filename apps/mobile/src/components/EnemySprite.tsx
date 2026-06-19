@@ -61,8 +61,6 @@ export function EnemySprite({ icon, spriteKey, events = [] }: EnemySpriteProps) 
             resizeMode="stretch"
           />
         </View>
-      ) : icon.startsWith('assets/') || icon.startsWith('http') ? (
-        <Image source={{ uri: icon }} style={{ width: 120, height: 120, resizeMode: 'contain' }} />
       ) : (
         <Text style={styles.icon}>{icon}</Text>
       )}

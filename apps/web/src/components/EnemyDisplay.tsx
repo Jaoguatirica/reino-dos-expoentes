@@ -11,8 +11,6 @@ export function EnemyDisplay({ icon, spriteKey, className = '' }: EnemyDisplayPr
     ? enemySpritesByKey[spriteKey as EnemySpriteKey]
     : null;
 
-  const isImageUrl = icon.startsWith('assets/') || icon.startsWith('http');
-
   return (
     <div id="monster-container">
       {sprite ? (
@@ -26,10 +24,6 @@ export function EnemyDisplay({ icon, spriteKey, className = '' }: EnemyDisplayPr
               height: sprite.height,
             }}
           />
-        </div>
-      ) : isImageUrl ? (
-        <div className={`monster-display floating ${className}`}>
-          <img src={icon} alt="Enemy" style={{ width: '96px', height: '96px', objectFit: 'contain' }} />
         </div>
       ) : (
         <div className={`monster-display floating ${className}`}>{icon}</div>

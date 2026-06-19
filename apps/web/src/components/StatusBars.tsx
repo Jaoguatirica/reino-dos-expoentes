@@ -16,33 +16,21 @@ export function StatusBars({ state, events = [] }: StatusBarsProps) {
   return (
     <div className="status-bar">
       <div className={`bar-container ${eventTypes.includes('PLAYER_DAMAGED') ? 'hero-hp-hit' : ''}`}>
-        <div className="label">
-          <img src="assets/game-images/vial of health potion.png" alt="HP" className="bar-icon" />
-          Herói <span>HP</span>
-        </div>
+        <div className="label">Herói <span>HP</span></div>
         <div className="progress-bg"><div className="progress-fill hp-fill" style={{ width: `${state.playerHp}%` }} /></div>
       </div>
       <div className={`bar-container ${eventTypes.includes('ANSWER_CORRECT') ? 'enemy-hp-hit' : ''}`}>
-        <div className="label">
-          <img src="assets/game-images/knighte.png" alt="Enemy" className="bar-icon" />
-          Inimigo <span>HP</span>
-        </div>
+        <div className="label">Inimigo <span>HP</span></div>
         <div className="progress-bg"><div className="progress-fill enemy-hp-fill" style={{ width: `${(state.enemyHp / state.enemyMaxHp) * 100}%` }} /></div>
       </div>
       <div className={`bar-container ${eventTypes.includes('ANSWER_CORRECT') ? 'mission-pulse' : ''}`}>
-        <div className="label">
-          <img src="assets/game-images/bag of gold.png" alt="Mission" className="bar-icon" />
-          Missão <span>{state.missionCurrent}/{state.balance.missionTarget}</span>
-        </div>
+        <div className="label">Missão <span>{state.missionCurrent}/{state.balance.missionTarget}</span></div>
         <div className="progress-bg">
           <div className="progress-fill xp-fill" style={{ width: `${(state.missionCurrent / state.balance.missionTarget) * 100}%` }} />
         </div>
       </div>
       <div className={`bar-container focus-container ${manaClassName} ${eventTypes.some((type) => type.startsWith('MANA_')) ? 'mission-pulse' : ''}`}>
-        <div className="label">
-          <img src="assets/game-images/vial of green poison.png" alt="Mana" className="bar-icon" />
-          Mana <span>{Math.round(state.mana)}/{state.balance.manaMax}</span>
-        </div>
+        <div className="label">Mana <span>{Math.round(state.mana)}/{state.balance.manaMax}</span></div>
         <div className="progress-bg">
           <div className="progress-fill focus-fill" style={{ width: `${manaPercent}%` }} />
         </div>
