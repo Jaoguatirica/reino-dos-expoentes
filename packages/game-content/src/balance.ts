@@ -10,7 +10,7 @@ export const defaultGameBalance: BalanceConfig = {
   wrongAnswerDamage: 20,
   shieldWrongAnswerDamage: 5,
   timeoutDamage: 10,
-  manaMax: 45,
+  manaMax: 250,
   manaStart: 0,
   manaCorrectGain: 5,
   manaComboGain: 2,

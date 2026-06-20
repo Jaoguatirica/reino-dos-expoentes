@@ -15,7 +15,7 @@ export const defaultBalance: BalanceConfig = {
   wrongAnswerDamage: 15,
   shieldWrongAnswerDamage: 5,
   timeoutDamage: 10,
-  manaMax: 100,
+  manaMax: 250,
   manaStart: 0,
   manaCorrectGain: 8,
   manaComboGain: 12,
@@ -209,19 +209,27 @@ function resolveVictory(state: GameState): GameState {
 }
 
 function rollLoot(levelIndex: number): string {
-  // Pesos melhorados para raridades maiores conforme o nível
-  const rarities: {rarity: string, weight: number}[] = [
-    { rarity: 'common', weight: 100 },
-    { rarity: 'uncommon', weight: 80 + levelIndex * 15 },
-    { rarity: 'rare', weight: 40 + levelIndex * 25 },
-    { rarity: 'epic', weight: 15 + levelIndex * 20 },
-    { rarity: 'legendary', weight: 8 + levelIndex * 15 },
-    { rarity: 'mythic', weight: 2 + levelIndex * 8 },
+  // Reduce rare drops as level increases (decay multiplier)
+  const baseWeights: {rarity: string, base: number}[] = [
+    { rarity: 'common', base: 100 },
+    { rarity: 'uncommon', base: 80 },
+    { rarity: 'rare', base: 40 },
+    { rarity: 'epic', base: 15 },
+    { rarity: 'legendary', base: 8 },
+    { rarity: 'mythic', base: 2 },
   ];
+
+  const decayFactor = 0.08; // 8% less weight per level
+  const minMultiplier = 0.2;
+
+  const rarities = baseWeights.map(w => ({
+    rarity: w.rarity,
+    weight: Math.max(1, Math.round(w.base * Math.max(minMultiplier, 1 - levelIndex * decayFactor)))
+  }));
 
   const totalWeight = rarities.reduce((acc, r) => acc + r.weight, 0);
   let roll = Math.random() * totalWeight;
-  
+
   let selectedRarity = 'common';
   // Ordenar do mais raro para o mais comum para o roll
   const sortedRarities = [...rarities].sort((a, b) => {
@@ -365,15 +373,37 @@ function useActiveSkill(state: GameState, slot: EquipmentSlot): GameState {
   if (!item) return state;
   const def = itemsRegistry[item];
   if (!def || def.category !== 'weapon') return state;
-  
-  const cost = def.activeManaCost;
+  // Scale mana cost by rarity and cap at manaMax
+  const rarityCostMultiplier: Record<string, number> = {
+    common: 1,
+    uncommon: 1.2,
+    rare: 1.6,
+    epic: 2.2,
+    legendary: 3,
+    mythic: 4,
+  };
+
+  const rarityDamageMultiplier: Record<string, number> = {
+    common: 1,
+    uncommon: 1.4,
+    rare: 1.9,
+    epic: 2.6,
+    legendary: 3.5,
+    mythic: 5,
+  };
+
+  const rarity = (def as any).rarity || 'common';
+  const baseCost = def.activeManaCost || 0;
+  const cost = Math.min(state.balance.manaMax, Math.round(baseCost * (rarityCostMultiplier[rarity] ?? 1)));
   if (state.mana < cost) return state;
 
-  const damage = Math.round(def.baseDamage * 3); 
+  // Damage scales with rarity and current enemy max HP relative to baseline balance
+  const hpScale = state.enemyMaxHp / Math.max(1, state.balance.enemyMaxHp);
+  const damage = Math.round(def.baseDamage * (rarityDamageMultiplier[rarity] ?? 1) * hpScale);
 
   const nextState: GameState = {
     ...state,
-    mana: state.mana - cost,
+    mana: Math.max(0, state.mana - cost),
     enemyHp: Math.max(0, state.enemyHp - damage),
     lastEvents: [...state.lastEvents, event('ACTIVE_SKILL_USED', { skillName: def.activeName }), event('MANA_SPENT', { amount: cost })]
   };
