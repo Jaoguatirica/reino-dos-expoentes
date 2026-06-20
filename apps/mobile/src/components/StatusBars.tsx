@@ -15,10 +15,13 @@ export function StatusBars({ state, events = [] }: StatusBarsProps) {
   const manaHint = state.status !== 'playing' || state.mana <= 0 ? 'sem mana' : 'mana ativo';
   const manaDeltaText = manaDelta ? manaEventText(manaDelta.type, Number(manaDelta.payload?.amount)) : manaHint;
 
+  const playerHpPercent = (state.playerHp / state.balance.playerMaxHp) * 100;
+  const enemyHpPercent = (state.enemyHp / state.enemyMaxHp) * 100;
+
   return (
     <View style={styles.card}>
-      <Bar label="Herói HP" value={state.playerHp} color="#ff1744" active={eventTypes.includes('PLAYER_DAMAGED')} />
-      <Bar label="Inimigo HP" value={(state.enemyHp / state.enemyMaxHp) * 100} color="#ff9100" active={eventTypes.includes('ANSWER_CORRECT') || eventTypes.includes('ACTIVE_SKILL_USED')} />
+      <Bar label={`Herói: ${Math.max(0, state.playerHp)}/${state.balance.playerMaxHp} HP`} value={playerHpPercent} color="#ff1744" active={eventTypes.includes('PLAYER_DAMAGED')} />
+      <Bar label={`Inimigo: ${Math.max(0, state.enemyHp)}/${state.enemyMaxHp} HP`} value={enemyHpPercent} color="#ff9100" active={eventTypes.includes('ANSWER_CORRECT') || eventTypes.includes('ACTIVE_SKILL_USED')} />
       <Bar label={`Missão: ${state.missionCurrent}/${state.balance.missionTarget}`} value={(state.missionCurrent / state.balance.missionTarget) * 100} color="#00bcd4" active={eventTypes.includes('ANSWER_CORRECT')} />
       <Bar label={`Mana: ${Math.round(state.mana)}/${state.balance.manaMax}`} value={manaPercent} color={manaColor} active={eventTypes.some((type) => type.startsWith('MANA_'))} hint={manaDeltaText} />
     </View>

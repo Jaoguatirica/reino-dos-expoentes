@@ -145,8 +145,20 @@ body {
 @keyframes barSheen { 0% { transform: translateX(-100%); } 55%, 100% { transform: translateX(120%); } }
 @keyframes barStripes { from { background-position: 0 0; } to { background-position: 22px 0; } }
 
-#combat-area { display: grid; align-items: stretch; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; padding: 10px; text-align: center; }
 .combat-main { position: relative; }
+
+/* Use a single flexible column by default so main content (perguntas) can
+   occupy all available space. The side panel will be an overlay to avoid
+   leaving an empty reserved column from an old inventory. */
+#combat-area {
+  display: grid;
+  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  padding: 10px;
+  text-align: center;
+  position: relative; /* so side-panel-stack can be absolutely positioned */
+}
 .monster-display { display: inline-block; margin: 10px 0; font-size: 80px; transition: transform 0.3s; }
 .sprite-stage { width: 96px; height: 96px; display: inline-flex; align-items: center; justify-content: center; }
 .sprite-tile { display: block; image-rendering: pixelated; transform: scale(5); transform-origin: center; background-repeat: no-repeat; }
@@ -260,7 +272,19 @@ button:disabled { cursor: not-allowed; filter: grayscale(0.5); opacity: 0.6; }
 .full-width-button { width: 100%; }
 
 .side-panel { display: flex; flex-direction: column; gap: 12px; padding: 15px; overflow-y: auto; background: rgba(11, 11, 19, 0.62); border: 1px solid var(--line); border-radius: 17px; }
-.side-panel-stack { position: relative; display: flex; flex-direction: column; justify-content: flex-end; min-height: 100%; }
+.side-panel-stack {
+  /* Position as an overlay on larger viewports so it doesn't reserve layout space */
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 100%;
+  pointer-events: none; /* make overlay non-interfering by default */
+}
+.side-panel-stack > * { pointer-events: auto; }
 .professor-reaction { display: flex; align-items: center; gap: 12px; padding: 12px; font-size: 13px; line-height: 1.35; text-align: left; background: rgba(33, 214, 199, 0.08); border-left: 4px solid var(--secondary); border-radius: 12px; }
 .professor-copy { display: flex; flex: 1; flex-direction: column; gap: 5px; min-width: 0; }
 .professor-avatar { flex: 0 0 auto; width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: rgba(0, 0, 0, 0.24); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 14px; }
@@ -380,6 +404,12 @@ button:disabled { cursor: not-allowed; filter: grayscale(0.5); opacity: 0.6; }
   gap: 30px;
   position: relative;
   box-shadow: 0 30px 100px rgba(0,0,0,0.8);
+}
+
+/* On small screens make the side panel flow in document order (no overlay) */
+@media (max-width: 920px) {
+  #combat-area { grid-template-columns: minmax(0, 1fr); }
+  .side-panel-stack { position: static; width: auto; min-height: auto; pointer-events: auto; }
 }
 
 .inventory-modal-close {

@@ -65,7 +65,9 @@ export function getCorrectAnswerDamage(combo: number, state: GameState): DamageR
 }
 
 export function getWrongAnswerDamage(state: GameState): number {
-  let damage = state.balance.wrongAnswerDamage;
+  // Scale enemy damage with level to make enemies stronger each phase.
+  const levelScale = 1 + (state.currentLevelIndex * 0.15); // +15% damage per level
+  let damage = Math.round(state.balance.wrongAnswerDamage * levelScale);
 
   if (state.inventory.equippedArmor) {
     const armorDef = itemsRegistry[state.inventory.equippedArmor];
@@ -74,7 +76,7 @@ export function getWrongAnswerDamage(state: GameState): number {
     }
   }
 
-  return damage;
+  return Math.max(1, damage);
 }
 
 export function hasPlayerLost(state: GameState): boolean {

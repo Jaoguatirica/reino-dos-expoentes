@@ -178,8 +178,9 @@ function tryDropItem(state: GameState): { newInventory: GameState['inventory'], 
 
 function timeoutQuestion(state: GameState): GameState {
   if (state.status !== 'playing') return state;
-
-  const damage = state.balance.timeoutDamage;
+  // Scale timeout damage with level so later levels are more punishing
+  const timeoutScale = 1 + (state.currentLevelIndex * 0.15);
+  const damage = Math.round(state.balance.timeoutDamage * timeoutScale);
   const nextState: GameState = {
     ...state,
     combo: 0,
@@ -268,7 +269,8 @@ function nextLevel(state: GameState): GameState {
   return startLevel({
     ...state,
     currentLevelIndex: nextLevelIndex,
-    playerHp: state.balance.playerMaxHp,
+    // Preserve player's current HP between levels (no automatic full heal)
+    playerHp: state.playerHp,
   }, [event('NEXT_LEVEL_REQUESTED')]);
 }
 

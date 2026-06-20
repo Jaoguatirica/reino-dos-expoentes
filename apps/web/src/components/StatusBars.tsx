@@ -16,11 +16,11 @@ export function StatusBars({ state, events = [] }: StatusBarsProps) {
   return (
     <div className="status-bar">
       <div className={`bar-container ${eventTypes.includes('PLAYER_DAMAGED') ? 'hero-hp-hit' : ''}`}>
-        <div className="label">Herói <span>HP</span></div>
-        <div className="progress-bg"><div className="progress-fill hp-fill" style={{ width: `${state.playerHp}%` }} /></div>
+        <div className="label">Herói <span>{Math.max(0, state.playerHp)}/{state.balance.playerMaxHp} HP</span></div>
+        <div className="progress-bg"><div className="progress-fill hp-fill" style={{ width: `${(state.playerHp / state.balance.playerMaxHp) * 100}%` }} /></div>
       </div>
       <div className={`bar-container ${eventTypes.includes('ANSWER_CORRECT') ? 'enemy-hp-hit' : ''}`}>
-        <div className="label">Inimigo <span>HP</span></div>
+        <div className="label">Inimigo <span>{Math.max(0, state.enemyHp)}/{state.enemyMaxHp} HP</span></div>
         <div className="progress-bg"><div className="progress-fill enemy-hp-fill" style={{ width: `${(state.enemyHp / state.enemyMaxHp) * 100}%` }} /></div>
       </div>
       <div className={`bar-container ${eventTypes.includes('ANSWER_CORRECT') ? 'mission-pulse' : ''}`}>
